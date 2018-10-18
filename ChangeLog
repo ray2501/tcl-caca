@@ -1,0 +1,10 @@
+2018-10-18  Danilo Chang
+
+    * Bump version to v0.1
+    * Add basic display and canvas functions
+
+2018-10-17  Danilo Chang
+
+    * Uupdate package name to caca
+    * Dump sample extension
+
