@@ -13,6 +13,7 @@ License:        MIT
 Group:          Development/Libraries/Tcl
 Url:            https://github.com/ray2501/tcl-caca
 Source:         %{name}-%{version}.tar.gz
+BuildRequires:  autoconf
 BuildRequires:  make
 BuildRequires:  gcc
 BuildRequires:  tcl-devel >= 8.6
