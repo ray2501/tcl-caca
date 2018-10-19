@@ -4,7 +4,7 @@ package require caca
 
 set driver_list [caca::get_display_driver_list]
 
-set cv [caca::create_canvas 0 0]
+set cv [caca::create_canvas 80 24]
 set dp [caca::create_display $cv]
 $cv set_color_ansi white black
 

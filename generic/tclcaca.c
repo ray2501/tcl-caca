@@ -2700,6 +2700,11 @@ Caca_Init(Tcl_Interp *interp)
     Tcl_SetVar2Ex(interp, "caca::EVENT_QUIT", NULL, Tcl_NewIntObj(0x0040), 0);
     Tcl_SetVar2Ex(interp, "caca::EVENT_ANY", NULL, Tcl_NewIntObj(0xffff), 0);
 
+    Tcl_SetVar2Ex(interp, "caca::STYLE_BOLD", NULL, Tcl_NewIntObj(0x01), 0);
+    Tcl_SetVar2Ex(interp, "caca::STYLE_ITALICS", NULL, Tcl_NewIntObj(0x02), 0);
+    Tcl_SetVar2Ex(interp, "caca::STYLE_UNDERLINE", NULL, Tcl_NewIntObj(0x04), 0);
+    Tcl_SetVar2Ex(interp, "caca::STYLE_BLINK", NULL, Tcl_NewIntObj(0x08), 0);
+
     /*
      * Commands
      */
