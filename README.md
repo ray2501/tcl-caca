@@ -1,7 +1,6 @@
 # tcl-caca
 
 This package is Tcl bindings for Colour ASCII Art library ([libcaca](http://caca.zoy.org/wiki/libcaca)).
-Now it is under initial development stage.
 
 
 License
@@ -138,4 +137,10 @@ below is an example:
         $ ./configure --with-tcl=/opt/activetcl/lib
         $ make
         $ make install
+
+
+Example
+=====
+
+Please check examples folder.
 
