@@ -1,5 +1,5 @@
 #
 # Tcl package index file
 #
-package ifneeded caca 0.1 \
-    [list load [file join $dir libcaca0.1.so] caca]
+package ifneeded caca 0.2 \
+    [list load [file join $dir libcaca0.2.so] caca]

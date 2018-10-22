@@ -1,5 +1,6 @@
 2018-10-22  Danilo Chang
 
+    * Bump version to v0.2
     * Add caca::create_dither command
 
 2018-10-19  Danilo Chang
