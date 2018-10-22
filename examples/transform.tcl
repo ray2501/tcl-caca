@@ -33,7 +33,7 @@ $image blit 30 1 $sprite
 $image set_color_ansi lightcyan black
 $image put_str 1 1 "hahaha mais vieux porc immonde !! \[⽼ ⾗\]"
 $image set_color_ansi lightred black
-$image put_char 38 1 124
+$image put_char 38 1 [scan | %c]
 
 $image set_color_ansi yellow black
 $image put_str 4 2 "\\o\\ \\o| _o/ \\o_ |o/ /o/"

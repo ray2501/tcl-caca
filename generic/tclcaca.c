@@ -12,9 +12,11 @@
  * Global variable
  */
 Tcl_HashTable *caca_hashtblPtr;
+
 int canvas_count = 0;
 int display_count = 0;
 int event_count = 0;
+int dither_count = 0;
 
 TCL_DECLARE_MUTEX(myMutex);
 
@@ -2017,28 +2019,32 @@ static int Caca_create_display(ClientData clientData, Tcl_Interp *interp,
   Tcl_Obj *pResultStr = NULL;
   int newvalue;
 
-  if( objc != 2 ){
-    Tcl_WrongNumArgs(interp, 1, objv, "canvas_handle");
+  if( objc != 1 && objc != 2 ){
+    Tcl_WrongNumArgs(interp, 1, objv, "?canvas_handle?");
     return TCL_ERROR;
   }
 
-  canHandle = Tcl_GetStringFromObj(objv[1], &length);
-  if(canHandle == NULL || length < 1) {
-    return TCL_ERROR;
-  }
-
-  hashEntryPtr = Tcl_FindHashEntry( caca_hashtblPtr, canHandle );
-  if( !hashEntryPtr ) {
-    if( interp ) {
-        Tcl_Obj *resultObj = Tcl_GetObjResult( interp );
-        Tcl_AppendStringsToObj( resultObj, "invalid canvas handle ", canHandle, (char *)NULL );
+  if (objc == 2) {
+    canHandle = Tcl_GetStringFromObj(objv[1], &length);
+    if(canHandle == NULL || length < 1) {
+      return TCL_ERROR;
     }
 
-    return TCL_ERROR;
-  }
+    hashEntryPtr = Tcl_FindHashEntry( caca_hashtblPtr, canHandle );
+    if( !hashEntryPtr ) {
+      if( interp ) {
+          Tcl_Obj *resultObj = Tcl_GetObjResult( interp );
+          Tcl_AppendStringsToObj( resultObj, "invalid canvas handle ", canHandle, (char *)NULL );
+      }
 
-  canvas = Tcl_GetHashValue( hashEntryPtr );
-  if(!canvas) return TCL_ERROR;
+      return TCL_ERROR;
+    }
+
+    canvas = Tcl_GetHashValue( hashEntryPtr );
+    if(!canvas) return TCL_ERROR;
+  } else {
+    canvas = NULL;
+  }
 
   display = caca_create_display(canvas);
   if (display == NULL) return TCL_ERROR;
@@ -2133,6 +2139,7 @@ static int DISPLAY_MAIN(void *cd, Tcl_Interp *interp, int objc,Tcl_Obj *const*ob
   static const char *DIS_strs[] = {
     "get_driver",
     "set_driver",
+    "get_canvas_handle",
     "refresh",
     "get_time",
     "set_time",
@@ -2150,6 +2157,7 @@ static int DISPLAY_MAIN(void *cd, Tcl_Interp *interp, int objc,Tcl_Obj *const*ob
   enum DIS_enum {
     DIS_GET_DRIVER,
     DIS_SET_DRIVER,
+    DIS_GET_CANVAS,
     DIS_REFRESH,
     DIS_GET_TIME,
     DIS_SET_TIME,
@@ -2220,6 +2228,37 @@ static int DISPLAY_MAIN(void *cd, Tcl_Interp *interp, int objc,Tcl_Obj *const*ob
       if (result < 0) return TCL_ERROR;
 
       Tcl_SetObjResult(interp, Tcl_NewIntObj( 0 ));
+      break;
+    }
+
+    case DIS_GET_CANVAS: {
+      caca_canvas_t *canvas = NULL;
+      Tcl_HashEntry *newHashEntryPtr;
+      char handleName[16 + TCL_INTEGER_SPACE];
+      Tcl_Obj *pResultStr = NULL;
+      int newvalue;
+
+      if( objc != 2 ){
+        Tcl_WrongNumArgs(interp, 2, objv, 0);
+        return TCL_ERROR;
+      }
+
+      canvas = caca_get_canvas(display);
+      if(!canvas) return TCL_ERROR;
+
+      Tcl_MutexLock(&myMutex);
+      sprintf( handleName, "caca_canvas_%d", canvas_count++ );
+
+      pResultStr = Tcl_NewStringObj( handleName, -1 );
+
+      newHashEntryPtr = Tcl_CreateHashEntry(caca_hashtblPtr, handleName, &newvalue);
+      Tcl_SetHashValue(newHashEntryPtr, canvas);
+      Tcl_MutexUnlock(&myMutex);
+
+      Tcl_CreateObjCommand(interp, handleName, (Tcl_ObjCmdProc *) CANVAS_MAIN,
+            (ClientData)NULL, (Tcl_CmdDeleteProc *)NULL);
+
+      Tcl_SetObjResult(interp, pResultStr);
       break;
     }
 
@@ -2646,6 +2685,572 @@ static int EVENT_MAIN(void *cd, Tcl_Interp *interp, int objc,Tcl_Obj *const*objv
   return TCL_OK;
 }
 
+
+static int Caca_create_dither(ClientData clientData, Tcl_Interp *interp,
+            int objc, Tcl_Obj *const objv[])
+{
+  caca_dither_t *dither = NULL;
+  Tcl_HashEntry *newHashEntryPtr;
+  char handleName[16 + TCL_INTEGER_SPACE];
+  int bpp = 0, w = 0, h = 0, pitch = 0;
+  uint32_t rmark = 0, gmark = 0, bmark = 0, amark = 0;
+  Tcl_Obj *pResultStr = NULL;
+  int newvalue;
+
+  if( objc != 9 ){
+    Tcl_WrongNumArgs(interp, 1, objv, "bpp w h pitch rmark gmark bmark amark");
+    return TCL_ERROR;
+  }
+
+  if(Tcl_GetIntFromObj(interp, objv[1], &bpp) != TCL_OK) {
+    return TCL_ERROR;
+  }
+
+  if(Tcl_GetIntFromObj(interp, objv[2], &w) != TCL_OK) {
+    return TCL_ERROR;
+  }
+
+  if(Tcl_GetIntFromObj(interp, objv[3], &h) != TCL_OK) {
+    return TCL_ERROR;
+  }
+
+  if(Tcl_GetIntFromObj(interp, objv[4], (int *) &pitch) != TCL_OK) {
+    return TCL_ERROR;
+  }
+
+  if(Tcl_GetIntFromObj(interp, objv[5], (int *) &rmark) != TCL_OK) {
+    return TCL_ERROR;
+  }
+
+  if(Tcl_GetIntFromObj(interp, objv[6], (int *) &gmark) != TCL_OK) {
+    return TCL_ERROR;
+  }
+
+  if(Tcl_GetIntFromObj(interp, objv[7], (int *) &bmark) != TCL_OK) {
+    return TCL_ERROR;
+  }
+
+  if(Tcl_GetIntFromObj(interp, objv[8], (int *) &amark) != TCL_OK) {
+    return TCL_ERROR;
+  }
+
+  dither = caca_create_dither(bpp, w, h, pitch, rmark, gmark, bmark, amark);
+  if (dither == NULL) return TCL_ERROR;
+
+  Tcl_MutexLock(&myMutex);
+  sprintf( handleName, "caca_dither_%d", dither_count++ );
+
+  pResultStr = Tcl_NewStringObj( handleName, -1 );
+
+  newHashEntryPtr = Tcl_CreateHashEntry(caca_hashtblPtr, handleName, &newvalue);
+  Tcl_SetHashValue(newHashEntryPtr, dither);
+  Tcl_MutexUnlock(&myMutex);
+
+  Tcl_CreateObjCommand(interp, handleName, (Tcl_ObjCmdProc *) DITHER_MAIN,
+        (ClientData)NULL, (Tcl_CmdDeleteProc *)NULL);
+
+  Tcl_SetObjResult(interp, pResultStr);
+  return TCL_OK;
+
+}
+
+
+static int DITHER_MAIN(void *cd, Tcl_Interp *interp, int objc,Tcl_Obj *const*objv){
+  int choice;
+  caca_dither_t *dither = NULL;
+  Tcl_HashEntry *hashEntryPtr;
+  char *ditHandle;
+
+  static const char *DIT_strs[] = {
+    "set_brightness",
+    "get_brightness",
+    "set_gamma",
+    "get_gamma",
+    "set_contrast",
+    "get_contrast",
+    "set_antialias",
+    "get_antialias",
+    "get_antialias_list",
+    "set_color",
+    "get_color",
+    "get_color_list",
+    "set_charset",
+    "get_charset",
+    "get_charset_list",
+    "set_algorithm",
+    "get_algorithm",
+    "get_algorithm_list",
+    "bitmap",
+    "close",
+    0
+  };
+
+  enum DIT_enum {
+    dit_set_brightness,
+    dit_get_brightness,
+    dit_set_gamma,
+    dit_get_gamma,
+    dit_set_contrast,
+    dit_get_contrast,
+    dit_set_antialias,
+    dit_get_antialias,
+    dit_get_antialias_list,
+    dit_set_color,
+    dit_get_color,
+    dit_get_color_list,
+    dit_set_charset,
+    dit_get_charset,
+    dit_get_charset_list,
+    dit_set_algorithm,
+    dit_get_algorithm,
+    dit_get_algorithm_list,
+    dit_bitmap,
+    dic_close,
+  };
+
+  if( objc < 2 ){
+    Tcl_WrongNumArgs(interp, 1, objv, "SUBCOMMAND ...");
+    return TCL_ERROR;
+  }
+
+  if( Tcl_GetIndexFromObj(interp, objv[1], DIT_strs, "option", 0, &choice) ){
+    return TCL_ERROR;
+  }
+
+  ditHandle = Tcl_GetStringFromObj(objv[0], 0);
+  hashEntryPtr = Tcl_FindHashEntry( caca_hashtblPtr, ditHandle );
+  if( !hashEntryPtr ) {
+    if( interp ) {
+        Tcl_Obj *resultObj = Tcl_GetObjResult( interp );
+        Tcl_AppendStringsToObj( resultObj, "invalid dither handle ", ditHandle, (char *)NULL );
+    }
+
+    return TCL_ERROR;
+  }
+
+  dither = Tcl_GetHashValue( hashEntryPtr );
+
+  switch( (enum DIT_enum)choice ){
+
+    case dit_set_brightness: {
+      double val = 0.0;
+      int result = 0;
+
+      if( objc != 3 ){
+        Tcl_WrongNumArgs(interp, 2, objv, "brightness");
+        return TCL_ERROR;
+      }
+
+      if(Tcl_GetDoubleFromObj(interp, objv[2], &val) != TCL_OK) {
+        return TCL_ERROR;
+      }
+
+      result = caca_set_dither_brightness(dither, (float) val);
+      if(result < 0) return TCL_ERROR;
+
+      Tcl_SetObjResult(interp, Tcl_NewIntObj( 0 ));
+      break;
+    }
+
+    case dit_get_brightness: {
+      double val = 0.0;
+
+      if( objc != 2 ){
+        Tcl_WrongNumArgs(interp, 2, objv, 0);
+        return TCL_ERROR;
+      }
+
+      val = caca_get_dither_brightness(dither);
+
+      Tcl_SetObjResult(interp, Tcl_NewDoubleObj( val ));
+      break;
+    }
+
+    case dit_set_gamma: {
+      double val = 0.0;
+      int result = 0;
+
+      if( objc != 3 ){
+        Tcl_WrongNumArgs(interp, 2, objv, "gamma");
+        return TCL_ERROR;
+      }
+
+      if(Tcl_GetDoubleFromObj(interp, objv[2], &val) != TCL_OK) {
+        return TCL_ERROR;
+      }
+
+      result = caca_set_dither_gamma(dither, (float) val);
+      if(result < 0) return TCL_ERROR;
+
+      Tcl_SetObjResult(interp, Tcl_NewIntObj( 0 ));
+      break;
+    }
+
+    case dit_get_gamma: {
+      double val = 0.0;
+
+      if( objc != 2 ){
+        Tcl_WrongNumArgs(interp, 2, objv, 0);
+        return TCL_ERROR;
+      }
+
+      val = caca_get_dither_gamma(dither);
+
+      Tcl_SetObjResult(interp, Tcl_NewDoubleObj( val ));
+      break;
+    }
+
+    case dit_set_contrast: {
+      double val = 0.0;
+      int result = 0;
+
+      if( objc != 3 ){
+        Tcl_WrongNumArgs(interp, 2, objv, "contrast");
+        return TCL_ERROR;
+      }
+
+      if(Tcl_GetDoubleFromObj(interp, objv[2], &val) != TCL_OK) {
+        return TCL_ERROR;
+      }
+
+      result = caca_set_dither_contrast(dither, (float) val);
+      if(result < 0) return TCL_ERROR;
+
+      Tcl_SetObjResult(interp, Tcl_NewIntObj( 0 ));
+      break;
+    }
+
+    case dit_get_contrast: {
+      double val = 0.0;
+
+      if( objc != 2 ){
+        Tcl_WrongNumArgs(interp, 2, objv, 0);
+        return TCL_ERROR;
+      }
+
+      val = caca_get_dither_contrast(dither);
+
+      Tcl_SetObjResult(interp, Tcl_NewDoubleObj( val ));
+      break;
+    }
+
+    case dit_set_antialias: {
+      char *val = NULL;
+      int length = 0;
+      int result = 0;
+
+      if( objc != 3 ){
+        Tcl_WrongNumArgs(interp, 2, objv, "antialias");
+        return TCL_ERROR;
+      }
+
+      val = Tcl_GetStringFromObj(objv[2], &length);
+      if(!val || length < 1) {
+        return TCL_ERROR;
+      }
+
+      result = caca_set_dither_antialias(dither, val);
+      if(result < 0) return TCL_ERROR;
+
+      Tcl_SetObjResult(interp, Tcl_NewIntObj( 0 ));
+      break;
+    }
+
+    case dit_get_antialias: {
+      const char *val = NULL;
+
+      if( objc != 2 ){
+        Tcl_WrongNumArgs(interp, 2, objv, 0);
+        return TCL_ERROR;
+      }
+
+      val = caca_get_dither_antialias(dither);
+      if(!val) return TCL_ERROR;
+
+      Tcl_SetObjResult(interp, Tcl_NewStringObj( val, -1 ));
+      break;
+    }
+
+    case dit_get_antialias_list: {
+      char const * const *list = NULL;
+      Tcl_Obj *pResultStr = NULL;
+      int count = 0;
+
+      if( objc != 2 ){
+        Tcl_WrongNumArgs(interp, 2, objv, 0);
+        return TCL_ERROR;
+      }
+
+      list = caca_get_dither_antialias_list(dither);
+      if(!list) return TCL_ERROR;
+
+      pResultStr = Tcl_NewListObj(0, NULL);
+      for(count = 0; list[count] != NULL; count++) {
+          Tcl_ListObjAppendElement(interp, pResultStr, 
+              Tcl_NewStringObj(list[count], strlen(list[count])));
+      }
+
+      Tcl_SetObjResult(interp, pResultStr);
+      break;
+    }
+
+    case dit_set_color: {
+      char *val = NULL;
+      int length = 0;
+      int result = 0;
+
+      if( objc != 3 ){
+        Tcl_WrongNumArgs(interp, 2, objv, "color");
+        return TCL_ERROR;
+      }
+
+      val = Tcl_GetStringFromObj(objv[2], &length);
+      if(!val || length < 1) {
+        return TCL_ERROR;
+      }
+
+      result = caca_set_dither_color(dither, val);
+      if(result < 0) return TCL_ERROR;
+
+      Tcl_SetObjResult(interp, Tcl_NewIntObj( 0 ));
+      break;
+    }
+
+    case dit_get_color: {
+      const char *val = NULL;
+
+      if( objc != 2 ){
+        Tcl_WrongNumArgs(interp, 2, objv, 0);
+        return TCL_ERROR;
+      }
+
+      val = caca_get_dither_color(dither);
+      if(!val) return TCL_ERROR;
+
+      Tcl_SetObjResult(interp, Tcl_NewStringObj( val, -1 ));
+      break;
+    }
+
+    case dit_get_color_list: {
+      char const * const *list = NULL;
+      Tcl_Obj *pResultStr = NULL;
+      int count = 0;
+
+      if( objc != 2 ){
+        Tcl_WrongNumArgs(interp, 2, objv, 0);
+        return TCL_ERROR;
+      }
+
+      list = caca_get_dither_color_list(dither);
+      if(!list) return TCL_ERROR;
+
+      pResultStr = Tcl_NewListObj(0, NULL);
+      for(count = 0; list[count] != NULL; count++) {
+          Tcl_ListObjAppendElement(interp, pResultStr,
+              Tcl_NewStringObj(list[count], strlen(list[count])));
+      }
+
+      Tcl_SetObjResult(interp, pResultStr);
+      break;
+    }
+
+    case dit_set_charset: {
+      char *val = NULL;
+      int length = 0;
+      int result = 0;
+
+      if( objc != 3 ){
+        Tcl_WrongNumArgs(interp, 2, objv, "charset");
+        return TCL_ERROR;
+      }
+
+      val = Tcl_GetStringFromObj(objv[2], &length);
+      if(!val || length < 1) {
+        return TCL_ERROR;
+      }
+
+      result = caca_set_dither_charset(dither, val);
+      if(result < 0) return TCL_ERROR;
+
+      Tcl_SetObjResult(interp, Tcl_NewIntObj( 0 ));
+      break;
+    }
+
+    case dit_get_charset: {
+      const char *val = NULL;
+
+      if( objc != 2 ){
+        Tcl_WrongNumArgs(interp, 2, objv, 0);
+        return TCL_ERROR;
+      }
+
+      val = caca_get_dither_charset(dither);
+      if(!val) return TCL_ERROR;
+
+      Tcl_SetObjResult(interp, Tcl_NewStringObj( val, -1 ));
+      break;
+    }
+
+    case dit_get_charset_list: {
+      char const * const *list = NULL;
+      Tcl_Obj *pResultStr = NULL;
+      int count = 0;
+
+      if( objc != 2 ){
+        Tcl_WrongNumArgs(interp, 2, objv, 0);
+        return TCL_ERROR;
+      }
+
+      list = caca_get_dither_charset_list(dither);
+      if(!list) return TCL_ERROR;
+
+      pResultStr = Tcl_NewListObj(0, NULL);
+      for(count = 0; list[count] != NULL; count++) {
+          Tcl_ListObjAppendElement(interp, pResultStr,
+              Tcl_NewStringObj(list[count], strlen(list[count])));
+      }
+
+      Tcl_SetObjResult(interp, pResultStr);
+      break;
+    }
+
+    case dit_set_algorithm: {
+      char *val = NULL;
+      int length = 0;
+      int result = 0;
+
+      if( objc != 3 ){
+        Tcl_WrongNumArgs(interp, 2, objv, "algorithm");
+        return TCL_ERROR;
+      }
+
+      val = Tcl_GetStringFromObj(objv[2], &length);
+      if(!val || length < 1) {
+        return TCL_ERROR;
+      }
+
+      result = caca_set_dither_algorithm(dither, val);
+      if(result < 0) return TCL_ERROR;
+
+      Tcl_SetObjResult(interp, Tcl_NewIntObj( 0 ));
+      break;
+    }
+
+    case dit_get_algorithm: {
+      const char *val = NULL;
+
+      if( objc != 2 ){
+        Tcl_WrongNumArgs(interp, 2, objv, 0);
+        return TCL_ERROR;
+      }
+
+      val = caca_get_dither_algorithm(dither);
+      if(!val) return TCL_ERROR;
+
+      Tcl_SetObjResult(interp, Tcl_NewStringObj( val, -1 ));
+      break;
+    }
+
+    case dit_get_algorithm_list: {
+      char const * const *list = NULL;
+      Tcl_Obj *pResultStr = NULL;
+      int count = 0;
+
+      if( objc != 2 ){
+        Tcl_WrongNumArgs(interp, 2, objv, 0);
+        return TCL_ERROR;
+      }
+
+      list = caca_get_dither_algorithm_list(dither);
+      if(!list) return TCL_ERROR;
+
+      pResultStr = Tcl_NewListObj(0, NULL);
+      for(count = 0; list[count] != NULL; count++) {
+          Tcl_ListObjAppendElement(interp, pResultStr,
+              Tcl_NewStringObj(list[count], strlen(list[count])));
+      }
+
+      Tcl_SetObjResult(interp, pResultStr);
+      break;
+    }
+
+    case dit_bitmap: {
+      int x =  0, y = 0, w = 0, h = 0;
+      caca_canvas_t *canvas = NULL;
+      Tcl_HashEntry *hashEntryPtr;
+      char *canHandle = NULL;
+      int length = 0;
+      unsigned char *bytearray = NULL;
+
+      if( objc != 8 ){
+        Tcl_WrongNumArgs(interp, 2, objv, "canvas_handle x y w h pixels");
+        return TCL_ERROR;
+      }
+
+      canHandle = Tcl_GetStringFromObj(objv[2], &length);
+      if(canHandle == NULL || length < 1) {
+        return TCL_ERROR;
+      }
+
+      hashEntryPtr = Tcl_FindHashEntry( caca_hashtblPtr, canHandle );
+      if( !hashEntryPtr ) {
+        if( interp ) {
+            Tcl_Obj *resultObj = Tcl_GetObjResult( interp );
+            Tcl_AppendStringsToObj( resultObj, "invalid canvas handle ", canHandle, (char *)NULL );
+        }
+
+        return TCL_ERROR;
+      }
+
+      canvas = Tcl_GetHashValue( hashEntryPtr );
+      if(!canvas) return TCL_ERROR;
+
+      if(Tcl_GetIntFromObj(interp, objv[3], &x) != TCL_OK) {
+        return TCL_ERROR;
+      }
+
+      if(Tcl_GetIntFromObj(interp, objv[4], &y) != TCL_OK) {
+        return TCL_ERROR;
+      }
+
+      if(Tcl_GetIntFromObj(interp, objv[5], &w) != TCL_OK) {
+        return TCL_ERROR;
+      }
+
+      if(Tcl_GetIntFromObj(interp, objv[6], &h) != TCL_OK) {
+        return TCL_ERROR;
+      }
+
+      bytearray = Tcl_GetByteArrayFromObj(objv[7], &length);
+      if(!bytearray || length < 1) return TCL_ERROR;
+
+      caca_dither_bitmap(canvas, x, y, w, h, dither,  (void *) bytearray);
+
+      Tcl_SetObjResult(interp, Tcl_NewIntObj( 0 ));
+      break;
+    }
+
+    case dic_close: {
+      if( objc != 2 ){
+        Tcl_WrongNumArgs(interp, 2, objv, 0);
+        return TCL_ERROR;
+      }
+
+      caca_free_dither(dither);
+
+      Tcl_MutexLock(&myMutex);
+      if( hashEntryPtr )  Tcl_DeleteHashEntry(hashEntryPtr);
+      Tcl_MutexUnlock(&myMutex);
+      Tcl_DeleteCommand(interp, ditHandle);
+
+      Tcl_SetObjResult(interp, Tcl_NewIntObj( 0 ));
+      break;
+    }
+  }
+
+  return TCL_OK;
+}
+
  
 /*
  *----------------------------------------------------------------------
@@ -2739,6 +3344,10 @@ Caca_Init(Tcl_Interp *interp)
 
     Tcl_CreateObjCommand(interp, "caca::create_display_with_driver", 
                         (Tcl_ObjCmdProc *) Caca_create_display_with_driver,
+                        (ClientData)NULL, (Tcl_CmdDeleteProc *)NULL);
+
+    Tcl_CreateObjCommand(interp, "caca::create_dither",
+                        (Tcl_ObjCmdProc *) Caca_create_dither,
                         (ClientData)NULL, (Tcl_CmdDeleteProc *)NULL);
 
     return TCL_OK;

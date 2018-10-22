@@ -18,8 +18,9 @@ caca::get_import_list
 caca::get_font_list  
 caca::rand min max  
 caca::create_canvas width height  
-caca::create_display CANVAS_HANDLE  
+caca::create_display ?CANVAS_HANDLE?  
 caca::create_display_with_driver CANVAS_HANDLE driver_name  
+caca::create_dither bpp w h pitch rmark gmark bmark amark  
 
 CANVAS_HANDLE set_size width height  
 CANVAS_HANDLE get_width  
@@ -80,8 +81,15 @@ CANVAS_HANDLE export_to_memory fmt
 CANVAS_HANDLE export_area_to_memory x y w h fmt  
 CANVAS_HANDLE close  
 
+`set_color_ansi` can accept below colors:  
+black, blue, green, cyan, red, magenta,
+brown, lightgray, drakgray, lightblue, lightgreen,
+lightcyan, lightred, lightmagenta, yellow, white,
+default and transparent
+
 DISPLAY_HANDLE get_driver  
 DISPLAY_HANDLE set_driver driver_name  
+DISPLAY_HANDLE get_canvas_handle  
 DISPLAY_HANDLE refresh  
 DISPLAY_HANDLE get_time  
 DISPLAY_HANDLE set_time time  
@@ -104,6 +112,48 @@ EVENT_HANDLE get_mouse_y
 EVENT_HANDLE get_resize_width  
 EVENT_HANDLE get_resize_height  
 EVENT_HANDLE close  
+
+DITHER_HANDLE set_brightness brightness  
+DITHER_HANDLE get_brightness  
+DITHER_HANDLE set_gamma gamma  
+DITHER_HANDLE get_gamma  
+DITHER_HANDLE set_contrast contrast  
+DITHER_HANDLE get_contrast  
+DITHER_HANDLE set_antialias antiallies  
+DITHER_HANDLE get_antialias  
+DITHER_HANDLE get_antialias_list  
+DITHER_HANDLE set_color color  
+DITHER_HANDLE get_color  
+DITHER_HANDLE get_color_list  
+DITHER_HANDLE set_charset charset  
+DITHER_HANDLE get_charset  
+DITHER_HANDLE get_charset_list  
+DITHER_HANDLE set_algorithm alogorithm  
+DITHER_HANDLE get_algorithm  
+DITHER_HANDLE get_algorithm_list  
+DITHER_HANDLE bitmap canvas_handle x y w h pixels  
+DITHER_HANDLE close  
+
+
+Variables
+=====
+
+caca::version  
+
+caca::EVENT_NONE  
+caca::EVENT_KEY_PRESS  
+caca::EVENT_KEY_RELEASE  
+caca::EVENT_MOUSE_PRESS  
+caca::EVENT_MOUSE_RELEASE  
+caca::EVENT_MOUSE_MOTION  
+caca::EVENT_RESIZE  
+caca::EVENT_QUIT  
+caca::EVENT_ANY  
+
+caca::STYLE_BOLD  
+caca::STYLE_ITALICS  
+caca::STYLE_UNDERLINE  
+caca::STYLE_BLINK  
 
 
 UNIX BUILD

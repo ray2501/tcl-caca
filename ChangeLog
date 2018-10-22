@@ -1,3 +1,7 @@
+2018-10-22  Danilo Chang
+
+    * Add caca::create_dither command
+
 2018-10-19  Danilo Chang
 
     * Add more examples

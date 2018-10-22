@@ -49,6 +49,12 @@ static int DISPLAY_MAIN(void *cd, Tcl_Interp *interp, int objc,Tcl_Obj *const*ob
 
 static int EVENT_MAIN(void *cd, Tcl_Interp *interp, int objc,Tcl_Obj *const*objv);
 
+static int Caca_create_dither(ClientData clientData, Tcl_Interp *interp,
+            int objc, Tcl_Obj *const objv[]);
+
+static int DITHER_MAIN(void *cd, Tcl_Interp *interp, int objc,Tcl_Obj *const*objv);
+
+
 /*
  * end block for C++
  */
