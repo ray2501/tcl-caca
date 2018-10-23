@@ -54,6 +54,10 @@ static int Caca_create_dither(ClientData clientData, Tcl_Interp *interp,
 
 static int DITHER_MAIN(void *cd, Tcl_Interp *interp, int objc,Tcl_Obj *const*objv);
 
+static int Caca_load_font(ClientData clientData, Tcl_Interp *interp,
+            int objc, Tcl_Obj *const objv[]);
+
+static int FONT_MAIN(void *cd, Tcl_Interp *interp, int objc,Tcl_Obj *const*objv);
 
 /*
  * end block for C++

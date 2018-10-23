@@ -21,6 +21,7 @@ caca::create_canvas width height
 caca::create_display ?CANVAS_HANDLE?  
 caca::create_display_with_driver CANVAS_HANDLE driver_name  
 caca::create_dither bpp w h pitch rmark gmark bmark amark  
+caca::load_font font_name  
 
 CANVAS_HANDLE set_size width height  
 CANVAS_HANDLE get_width  
@@ -79,6 +80,7 @@ CANVAS_HANDLE import_area_from_memory x y data fmt
 CANVAS_HANDLE import_area_from_file x y file fmt  
 CANVAS_HANDLE export_to_memory fmt  
 CANVAS_HANDLE export_area_to_memory x y w h fmt  
+CANVAS_HANDLE render font_handle bytearray width height pitch  
 CANVAS_HANDLE close  
 
 `set_color_ansi` can accept below colors:  
@@ -134,6 +136,10 @@ DITHER_HANDLE get_algorithm_list
 DITHER_HANDLE bitmap canvas_handle x y w h pixels  
 DITHER_HANDLE close  
 
+FONT_HANDLE get_width  
+FONT_HANDLE get_height  
+FONT_HANDLE close  
+
 
 Variables
 =====
@@ -154,6 +160,60 @@ caca::STYLE_BOLD
 caca::STYLE_ITALICS  
 caca::STYLE_UNDERLINE  
 caca::STYLE_BLINK  
+
+caca::KEY_UNKNOWN  
+caca::KEY_CTRL_A  
+caca::KEY_CTRL_B  
+caca::KEY_CTRL_C  
+caca::KEY_CTRL_D  
+caca::KEY_CTRL_E  
+caca::KEY_CTRL_F  
+caca::KEY_CTRL_G  
+caca::KEY_BACKSPACE  
+caca::KEY_TAB  
+caca::KEY_CTRL_J  
+caca::KEY_CTRL_K  
+caca::KEY_CTRL_L  
+caca::KEY_RETURN  
+caca::KEY_CTRL_N  
+caca::KEY_CTRL_O  
+caca::KEY_CTRL_P  
+caca::KEY_CTRL_Q  
+caca::KEY_CTRL_R  
+caca::KEY_PAUSE  
+caca::KEY_CTRL_T  
+caca::KEY_CTRL_U  
+caca::KEY_CTRL_V  
+caca::KEY_CTRL_W  
+caca::KEY_CTRL_X  
+caca::KEY_CTRL_Y  
+caca::KEY_CTRL_Z  
+caca::KEY_ESCAPE  
+caca::KEY_DELETE  
+caca::KEY_UP  
+caca::KEY_DOWN  
+caca::KEY_LEFT  
+caca::KEY_RIGHT  
+caca::KEY_INSERT  
+caca::KEY_HOME  
+caca::KEY_END  
+caca::KEY_PAGEUP  
+caca::KEY_PAGEDOWN  
+caca::KEY_F1  
+caca::KEY_F2  
+caca::KEY_F3  
+caca::KEY_F4  
+caca::KEY_F5  
+caca::KEY_F6  
+caca::KEY_F7  
+caca::KEY_F8  
+caca::KEY_F9  
+caca::KEY_F10  
+caca::KEY_F11  
+caca::KEY_F12  
+caca::KEY_F13  
+caca::KEY_F14  
+caca::KEY_F15  
 
 
 UNIX BUILD

@@ -17,6 +17,7 @@ int canvas_count = 0;
 int display_count = 0;
 int event_count = 0;
 int dither_count = 0;
+int font_count = 0;
 
 TCL_DECLARE_MUTEX(myMutex);
 
@@ -272,6 +273,7 @@ static int CANVAS_MAIN(void *cd, Tcl_Interp *interp, int objc,Tcl_Obj *const*obj
     "import_area_from_file",
     "export_to_memory",
     "export_area_to_memory",
+    "render",
     "close",
     0
   };
@@ -334,6 +336,7 @@ static int CANVAS_MAIN(void *cd, Tcl_Interp *interp, int objc,Tcl_Obj *const*obj
     CAN_IMPORT_AREA_FROM_FILE,
     CAN_EXPORT_TO_MEMORY,
     CAN_EXPORT_AREA_TO_MEMORY,
+    CAN_RENDER,
     CAN_CLOSE,
   };
 
@@ -1984,6 +1987,60 @@ static int CANVAS_MAIN(void *cd, Tcl_Interp *interp, int objc,Tcl_Obj *const*obj
       break;
     }
 
+    case CAN_RENDER: {
+      caca_font_t *font = NULL;
+      Tcl_HashEntry *hashEntryPtr;
+      char *fonHandle = NULL;
+      int length = 0;
+      unsigned char *bytearray = NULL;
+      int w = 0, h = 0, pitch = 0;
+      int result = 0;
+
+      if( objc != 7 ){
+        Tcl_WrongNumArgs(interp, 2, objv, "font_handle bytearray width height pitch");
+        return TCL_ERROR;
+      }
+
+      fonHandle = Tcl_GetStringFromObj(objv[2], &length);
+      if(fonHandle == NULL || length < 1) {
+        return TCL_ERROR;
+      }
+
+      hashEntryPtr = Tcl_FindHashEntry( caca_hashtblPtr, fonHandle );
+      if( !hashEntryPtr ) {
+        if( interp ) {
+          Tcl_Obj *resultObj = Tcl_GetObjResult( interp );
+          Tcl_AppendStringsToObj( resultObj, "invalid font handle ", canHandle, (char *)NULL );
+        }
+
+        return TCL_ERROR;
+      }
+
+      font = Tcl_GetHashValue( hashEntryPtr );
+      if(!font) return TCL_ERROR;
+
+      bytearray = Tcl_GetByteArrayFromObj(objv[3], &length);
+      if(!bytearray || length < 1) return TCL_ERROR;
+
+      if(Tcl_GetIntFromObj(interp, objv[4], &w) != TCL_OK) {
+        return TCL_ERROR;
+      }
+
+      if(Tcl_GetIntFromObj(interp, objv[5], &h) != TCL_OK) {
+        return TCL_ERROR;
+      }
+
+      if(Tcl_GetIntFromObj(interp, objv[6], &pitch) != TCL_OK) {
+        return TCL_ERROR;
+      }
+
+      result = caca_render_canvas(canvas, font, bytearray, w, h, pitch);
+      if(result < 0) return TCL_ERROR;
+
+      Tcl_SetObjResult(interp, Tcl_NewIntObj( 0 ));
+      break;
+    }
+
     case CAN_CLOSE: {
       if( objc != 2 ){
         Tcl_WrongNumArgs(interp, 2, objv, 0);
@@ -3251,6 +3308,142 @@ static int DITHER_MAIN(void *cd, Tcl_Interp *interp, int objc,Tcl_Obj *const*obj
   return TCL_OK;
 }
 
+
+static int Caca_load_font(ClientData clientData, Tcl_Interp *interp,
+            int objc, Tcl_Obj *const objv[])
+{
+  caca_font_t *font = NULL;
+  Tcl_HashEntry *newHashEntryPtr;
+  char handleName[16 + TCL_INTEGER_SPACE];
+  const char *fontname = NULL;
+  int length = 0;
+  Tcl_Obj *pResultStr = NULL;
+  int newvalue;
+
+  if( objc != 2 ){
+    Tcl_WrongNumArgs(interp, 1, objv, "fonename");
+    return TCL_ERROR;
+  }
+
+  fontname = Tcl_GetStringFromObj(objv[1], &length);
+  if(!fontname || length < 1) {
+      return TCL_ERROR;
+  }
+
+  font = caca_load_font((void const *) fontname, 0);
+  if (font == NULL) return TCL_ERROR;
+
+  Tcl_MutexLock(&myMutex);
+  sprintf( handleName, "caca_font_%d", font_count++ );
+
+  pResultStr = Tcl_NewStringObj( handleName, -1 );
+
+  newHashEntryPtr = Tcl_CreateHashEntry(caca_hashtblPtr, handleName, &newvalue);
+  Tcl_SetHashValue(newHashEntryPtr, font);
+  Tcl_MutexUnlock(&myMutex);
+
+  Tcl_CreateObjCommand(interp, handleName, (Tcl_ObjCmdProc *) FONT_MAIN,
+        (ClientData)NULL, (Tcl_CmdDeleteProc *)NULL);
+
+  Tcl_SetObjResult(interp, pResultStr);
+  return TCL_OK;
+
+}
+
+
+static int FONT_MAIN(void *cd, Tcl_Interp *interp, int objc,Tcl_Obj *const*objv)
+{
+  int choice;
+  caca_font_t *font = NULL;
+  Tcl_HashEntry *hashEntryPtr;
+  char *fonHandle;
+
+  static const char *FON_strs[] = {
+    "get_width",
+    "get_height",
+    "close",
+    0
+  };
+
+  enum FON_enum {
+    fon_get_width,
+    fon_get_height,
+    fon_close,
+  };
+
+  if( objc < 2 ){
+    Tcl_WrongNumArgs(interp, 1, objv, "SUBCOMMAND ...");
+    return TCL_ERROR;
+  }
+
+  if( Tcl_GetIndexFromObj(interp, objv[1], FON_strs, "option", 0, &choice) ){
+    return TCL_ERROR;
+  }
+
+  fonHandle = Tcl_GetStringFromObj(objv[0], 0);
+  hashEntryPtr = Tcl_FindHashEntry( caca_hashtblPtr, fonHandle );
+  if( !hashEntryPtr ) {
+    if( interp ) {
+        Tcl_Obj *resultObj = Tcl_GetObjResult( interp );
+        Tcl_AppendStringsToObj( resultObj, "invalid font handle ", fonHandle, (char *)NULL );
+    }
+
+    return TCL_ERROR;
+  }
+
+  font = Tcl_GetHashValue( hashEntryPtr );
+
+  switch( (enum FON_enum)choice ){
+
+    case fon_get_width: {
+      int val = 0;
+
+      if( objc != 2 ){
+        Tcl_WrongNumArgs(interp, 2, objv, 0);
+        return TCL_ERROR;
+      }
+
+      val = caca_get_font_width(font);
+
+      Tcl_SetObjResult(interp, Tcl_NewIntObj( val ));
+      break;
+    }
+
+    case fon_get_height: {
+      int val = 0;
+
+      if( objc != 2 ){
+        Tcl_WrongNumArgs(interp, 2, objv, 0);
+        return TCL_ERROR;
+      }
+
+      val = caca_get_font_height(font);
+
+      Tcl_SetObjResult(interp, Tcl_NewIntObj( val ));
+      break;
+    }
+
+    case fon_close: {
+      if( objc != 2 ){
+        Tcl_WrongNumArgs(interp, 2, objv, 0);
+        return TCL_ERROR;
+      }
+
+      caca_free_font(font);
+
+      Tcl_MutexLock(&myMutex);
+      if( hashEntryPtr )  Tcl_DeleteHashEntry(hashEntryPtr);
+      Tcl_MutexUnlock(&myMutex);
+      Tcl_DeleteCommand(interp, fonHandle);
+
+      Tcl_SetObjResult(interp, Tcl_NewIntObj( 0 ));
+      break;
+    }
+  }
+
+  return TCL_OK;
+}
+
  
 /*
  *----------------------------------------------------------------------
@@ -3310,6 +3503,61 @@ Caca_Init(Tcl_Interp *interp)
     Tcl_SetVar2Ex(interp, "caca::STYLE_UNDERLINE", NULL, Tcl_NewIntObj(0x04), 0);
     Tcl_SetVar2Ex(interp, "caca::STYLE_BLINK", NULL, Tcl_NewIntObj(0x08), 0);
 
+    /* Special key values */
+    Tcl_SetVar2Ex(interp, "caca::KEY_UNKNOWN", NULL, Tcl_NewIntObj(0x00), 0);
+    Tcl_SetVar2Ex(interp, "caca::KEY_CTRL_A", NULL, Tcl_NewIntObj(0x01), 0);
+    Tcl_SetVar2Ex(interp, "caca::KEY_CTRL_B", NULL, Tcl_NewIntObj(0x02), 0);
+    Tcl_SetVar2Ex(interp, "caca::KEY_CTRL_C", NULL, Tcl_NewIntObj(0x03), 0);
+    Tcl_SetVar2Ex(interp, "caca::KEY_CTRL_D", NULL, Tcl_NewIntObj(0x04), 0);
+    Tcl_SetVar2Ex(interp, "caca::KEY_CTRL_E", NULL, Tcl_NewIntObj(0x05), 0);
+    Tcl_SetVar2Ex(interp, "caca::KEY_CTRL_F", NULL, Tcl_NewIntObj(0x06), 0);
+    Tcl_SetVar2Ex(interp, "caca::KEY_CTRL_G", NULL, Tcl_NewIntObj(0x07), 0);
+    Tcl_SetVar2Ex(interp, "caca::KEY_BACKSPACE", NULL, Tcl_NewIntObj(0x08), 0);
+    Tcl_SetVar2Ex(interp, "caca::KEY_TAB", NULL, Tcl_NewIntObj(0x09), 0);
+    Tcl_SetVar2Ex(interp, "caca::KEY_CTRL_J", NULL, Tcl_NewIntObj(0x0a), 0);
+    Tcl_SetVar2Ex(interp, "caca::KEY_CTRL_K", NULL, Tcl_NewIntObj(0x0b), 0);
+    Tcl_SetVar2Ex(interp, "caca::KEY_CTRL_L", NULL, Tcl_NewIntObj(0x0c), 0);
+    Tcl_SetVar2Ex(interp, "caca::KEY_RETURN", NULL, Tcl_NewIntObj(0x0d), 0);
+    Tcl_SetVar2Ex(interp, "caca::KEY_CTRL_N", NULL, Tcl_NewIntObj(0x0e), 0);
+    Tcl_SetVar2Ex(interp, "caca::KEY_CTRL_O", NULL, Tcl_NewIntObj(0x0f), 0);
+    Tcl_SetVar2Ex(interp, "caca::KEY_CTRL_P", NULL, Tcl_NewIntObj(0x10), 0);
+    Tcl_SetVar2Ex(interp, "caca::KEY_CTRL_Q", NULL, Tcl_NewIntObj(0x11), 0);
+    Tcl_SetVar2Ex(interp, "caca::KEY_CTRL_R", NULL, Tcl_NewIntObj(0x12), 0);
+    Tcl_SetVar2Ex(interp, "caca::KEY_PAUSE", NULL, Tcl_NewIntObj(0x13), 0);
+    Tcl_SetVar2Ex(interp, "caca::KEY_CTRL_T", NULL, Tcl_NewIntObj(0x14), 0);
+    Tcl_SetVar2Ex(interp, "caca::KEY_CTRL_U", NULL, Tcl_NewIntObj(0x15), 0);
+    Tcl_SetVar2Ex(interp, "caca::KEY_CTRL_V", NULL, Tcl_NewIntObj(0x16), 0);
+    Tcl_SetVar2Ex(interp, "caca::KEY_CTRL_W", NULL, Tcl_NewIntObj(0x17), 0);
+    Tcl_SetVar2Ex(interp, "caca::KEY_CTRL_X", NULL, Tcl_NewIntObj(0x18), 0);
+    Tcl_SetVar2Ex(interp, "caca::KEY_CTRL_Y", NULL, Tcl_NewIntObj(0x19), 0);
+    Tcl_SetVar2Ex(interp, "caca::KEY_CTRL_Z", NULL, Tcl_NewIntObj(0x1a), 0);
+    Tcl_SetVar2Ex(interp, "caca::KEY_ESCAPE", NULL, Tcl_NewIntObj(0x1b), 0);
+    Tcl_SetVar2Ex(interp, "caca::KEY_DELETE", NULL, Tcl_NewIntObj(0x7f), 0);
+    Tcl_SetVar2Ex(interp, "caca::KEY_UP", NULL, Tcl_NewIntObj(0x111), 0);
+    Tcl_SetVar2Ex(interp, "caca::KEY_DOWN", NULL, Tcl_NewIntObj(0x112), 0);
+    Tcl_SetVar2Ex(interp, "caca::KEY_LEFT", NULL, Tcl_NewIntObj(0x113), 0);
+    Tcl_SetVar2Ex(interp, "caca::KEY_RIGHT", NULL, Tcl_NewIntObj(0x114), 0);
+    Tcl_SetVar2Ex(interp, "caca::KEY_INSERT", NULL, Tcl_NewIntObj(0x115), 0);
+    Tcl_SetVar2Ex(interp, "caca::KEY_HOME", NULL, Tcl_NewIntObj(0x116), 0);
+    Tcl_SetVar2Ex(interp, "caca::KEY_END", NULL, Tcl_NewIntObj(0x117), 0);
+    Tcl_SetVar2Ex(interp, "caca::KEY_PAGEUP", NULL, Tcl_NewIntObj(0x118), 0);
+    Tcl_SetVar2Ex(interp, "caca::KEY_PAGEDOWN", NULL, Tcl_NewIntObj(0x119), 0);
+    Tcl_SetVar2Ex(interp, "caca::KEY_F1", NULL, Tcl_NewIntObj(0x11a), 0);
+    Tcl_SetVar2Ex(interp, "caca::KEY_F2", NULL, Tcl_NewIntObj(0x11b), 0);
+    Tcl_SetVar2Ex(interp, "caca::KEY_F3", NULL, Tcl_NewIntObj(0x11c), 0);
+    Tcl_SetVar2Ex(interp, "caca::KEY_F4", NULL, Tcl_NewIntObj(0x11d), 0);
+    Tcl_SetVar2Ex(interp, "caca::KEY_F5", NULL, Tcl_NewIntObj(0x11e), 0);
+    Tcl_SetVar2Ex(interp, "caca::KEY_F6", NULL, Tcl_NewIntObj(0x11f), 0);
+    Tcl_SetVar2Ex(interp, "caca::KEY_F7", NULL, Tcl_NewIntObj(0x120), 0);
+    Tcl_SetVar2Ex(interp, "caca::KEY_F8", NULL, Tcl_NewIntObj(0x121), 0);
+    Tcl_SetVar2Ex(interp, "caca::KEY_F9", NULL, Tcl_NewIntObj(0x122), 0);
+    Tcl_SetVar2Ex(interp, "caca::KEY_F10", NULL, Tcl_NewIntObj(0x123), 0);
+    Tcl_SetVar2Ex(interp, "caca::KEY_F11", NULL, Tcl_NewIntObj(0x124), 0);
+    Tcl_SetVar2Ex(interp, "caca::KEY_F12", NULL, Tcl_NewIntObj(0x125), 0);
+    Tcl_SetVar2Ex(interp, "caca::KEY_F13", NULL, Tcl_NewIntObj(0x126), 0);
+    Tcl_SetVar2Ex(interp, "caca::KEY_F14", NULL, Tcl_NewIntObj(0x127), 0);
+    Tcl_SetVar2Ex(interp, "caca::KEY_F15", NULL, Tcl_NewIntObj(0x128), 0);
+
     /*
      * Commands
      */
@@ -3348,6 +3596,10 @@ Caca_Init(Tcl_Interp *interp)
 
     Tcl_CreateObjCommand(interp, "caca::create_dither",
                         (Tcl_ObjCmdProc *) Caca_create_dither,
+                        (ClientData)NULL, (Tcl_CmdDeleteProc *)NULL);
+
+    Tcl_CreateObjCommand(interp, "caca::load_font",
+                        (Tcl_ObjCmdProc *) Caca_load_font,
                         (ClientData)NULL, (Tcl_CmdDeleteProc *)NULL);
 
     return TCL_OK;
