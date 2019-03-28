@@ -1,7 +1,7 @@
 /*
  * Tcl bindings for Colour ASCII Art library (libcaca)
  *
- * Copyright (c) <2018>, <Danilo Chang>
+ * Copyright (c) <2018-2019>, <Danilo Chang>
  * All rights reserved.
  */
 
