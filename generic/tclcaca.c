@@ -3321,7 +3321,7 @@ static int Caca_load_font(ClientData clientData, Tcl_Interp *interp,
   int newvalue;
 
   if( objc != 2 ){
-    Tcl_WrongNumArgs(interp, 1, objv, "fonename");
+    Tcl_WrongNumArgs(interp, 1, objv, "fontname");
     return TCL_ERROR;
   }
 
