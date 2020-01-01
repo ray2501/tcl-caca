@@ -1944,6 +1944,12 @@ static int CANVAS_MAIN(void *cd, Tcl_Interp *interp, int objc,Tcl_Obj *const*obj
       if (buffer == NULL) return TCL_ERROR;
 
       Tcl_SetObjResult(interp, Tcl_NewStringObj( buffer, buffer_length ));
+
+      /* The returned pointer should be passed to free() to release the
+       * allocated storage when it is no longer needed.
+       * Since we return a new Tcl string, free it here.
+       */
+      if(buffer) free(buffer);
       break;
     }
 
@@ -1984,6 +1990,12 @@ static int CANVAS_MAIN(void *cd, Tcl_Interp *interp, int objc,Tcl_Obj *const*obj
       if (buffer == NULL) return TCL_ERROR;
 
       Tcl_SetObjResult(interp, Tcl_NewStringObj( buffer, buffer_length ));
+
+      /* The returned pointer should be passed to free() to release the
+       * allocated storage when it is no longer needed.
+       * Since we return a new Tcl string, free it here.
+       */
+      if(buffer) free(buffer);
       break;
     }
 
