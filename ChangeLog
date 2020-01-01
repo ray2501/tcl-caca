@@ -1,3 +1,8 @@
+2020-01-01  Danilo Chang
+
+    * Bump version to v0.5
+    * Free buffer in CAN_EXPORT_TO_MEMORY, CAN_EXPORT_AREA_TO_MEMORY
+
 2019-03-28  Danilo Chang
 
     * Bump version to v0.4

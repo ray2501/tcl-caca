@@ -6,7 +6,7 @@
 %define packagename caca
 
 Name:           tcl-caca
-Version:        0.4
+Version:        0.5
 Release:        0
 Summary:        Tcl bindings for Colour ASCII Art library (libcaca) 
 License:        MIT
