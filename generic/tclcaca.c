@@ -2473,6 +2473,16 @@ static int DISPLAY_MAIN(void *cd, Tcl_Interp *interp, int objc,Tcl_Obj *const*ob
       }
 
       event = (caca_event_t *) malloc(sizeof(caca_event_t));
+      if(!event) {
+          if( interp ) {
+             Tcl_Obj *resultObj = Tcl_GetObjResult( interp );
+             Tcl_AppendStringsToObj( resultObj, "no memory", (char *)NULL );
+          }
+
+          return TCL_ERROR;
+      }
+
+      (void)memset(event, 0x00, sizeof(caca_event_t));
 
       Tcl_MutexLock(&myMutex);
       sprintf( handleName, "caca_event_%d", event_count++ );
