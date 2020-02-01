@@ -134,6 +134,26 @@ test caca-1.17 {put str} {*}{
     -result {0}
 }
 
+test caca-1.18 {set_color_ansi} {*}{
+    -body {
+        caca_canvas_0 set_color_ansi white blue
+    }
+    -result {0}
+}
+
+test caca-1.19 {draw_line} {*}{
+    -body {
+        caca_canvas_0 draw_line 10 10 20 20 42
+    }
+    -result {0}
+}
+
+test caca-1.20 {clear} {*}{
+    -body {
+        caca_canvas_0 clear
+    }
+    -result {0}
+}
 
 #-------------------------------------------------------------------------------
 
