@@ -186,7 +186,9 @@ static int Caca_create_canvas(ClientData clientData, Tcl_Interp *interp,
     return TCL_ERROR;
   }
 
-  if(width < 0 || height < 0) return TCL_ERROR;
+  if(width < 0 || height < 0) {
+    return TCL_ERROR;
+  }
 
   canvas = caca_create_canvas(width, height);
   if(!canvas) return TCL_ERROR;

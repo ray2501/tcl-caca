@@ -1,0 +1,107 @@
+# tcl-caca.test --
+#
+#	Tests for tcl-caca
+#------------------------------------------------------------------------------
+
+lappend auto_path .
+if {[lsearch [namespace children] ::tcltest] == -1} {
+    package require tcltest 2
+    namespace import -force ::tcltest::*
+}
+loadTestedCommands
+package require caca
+
+#-------------------------------------------------------------------------------
+
+test caca-1.1 {create a canvas, wrong # args} {*}{
+    -body {
+        caca::create_canvas 0
+    }
+    -returnCodes error
+    -match glob
+    -result {wrong # args*}
+}
+
+test caca-1.2 {create a canvas, wrong args} {*}{
+    -body {
+        caca::create_canvas 0 -1
+    }
+    -returnCodes error
+}
+
+test caca-1.3 {create a canvas, wrong args} {*}{
+    -body {
+        caca::create_canvas -1 0
+    }
+    -returnCodes error
+}
+
+test caca-1.4 {create a canvas} {*}{
+    -body {
+        caca::create_canvas 0 0
+    }
+    -result {caca_canvas_0}
+}
+
+test caca-1.5 {get canvas width} {*}{
+    -body {
+        caca_canvas_0 get_width
+    }
+    -result {0}
+}
+
+test caca-1.6 {get canvas height} {*}{
+    -body {
+        caca_canvas_0 get_height 
+    }
+    -result {0}
+}
+
+test caca-1.7 {set canvas size} {*}{
+    -body {
+        caca_canvas_0 set_size 80 40
+    }
+    -result {0}
+}
+
+test caca-1.8 {get canvas width} {*}{
+    -body {
+        caca_canvas_0 get_width
+    }
+    -result {80}
+}
+
+test caca-1.9 {get canvas height} {*}{
+    -body {
+        caca_canvas_0 get_height
+    }
+    -result {40}
+}
+
+test caca-1.10 {gotoxy} {*}{
+    -body {
+        caca_canvas_0 gotoxy 10 10
+    }
+    -result {0}
+}
+
+test caca-1.11 {wherex} {*}{
+    -body {
+        caca_canvas_0 wherex
+    }
+    -result {10}
+}
+
+test caca-1.12 {wherey} {*}{
+    -body {
+        caca_canvas_0 wherey
+    }
+    -result {10}
+}
+
+#-------------------------------------------------------------------------------
+
+catch {caca_canvas_0 close}
+
+cleanupTests
+return
