@@ -99,6 +99,42 @@ test caca-1.12 {wherey} {*}{
     -result {10}
 }
 
+test caca-1.13 {put attr} {*}{
+    -body {
+        caca_canvas_0 put_attr 2 2 5635908
+    }
+    -result {0}
+}
+
+test caca-1.14 {get attr} {*}{
+    -body {
+        caca_canvas_0 get_attr 2 2
+    }
+    -result {5635908}
+}
+
+test caca-1.15 {put char} {*}{
+    -body {
+        caca_canvas_0 put_char 3 3 84
+    }
+    -result {1}
+}
+
+test caca-1.16 {set attr} {*}{
+    -body {
+        caca_canvas_0 set_attr $caca::STYLE_UNDERLINE
+    }
+    -result {0}
+}
+
+test caca-1.17 {put str} {*}{
+    -body {
+        caca_canvas_0 put_str 2 2 "Hello Tcl"
+    }
+    -result {0}
+}
+
+
 #-------------------------------------------------------------------------------
 
 catch {caca_canvas_0 close}
