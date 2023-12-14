@@ -1,5 +1,10 @@
+# -*- tcl -*-
+# Tcl package index file, version 1.1
 #
-# Tcl package index file
-#
-package ifneeded caca 0.7 \
-    [list load [file join $dir libcaca0.7.so] caca]
+if {[package vsatisfies [package provide Tcl] 9.0-]} {
+    package ifneeded caca 0.7 \
+	    [list load [file join $dir libtcl9caca0.7.so] [string totitle caca]]
+} else {
+    package ifneeded caca 0.7 \
+	    [list load [file join $dir libcaca0.7.so] [string totitle caca]]
+}
